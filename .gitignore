@@ -1,0 +1,23 @@
+# Python cache and virtual environment files
+__pycache__/
+*.py[cod]
+*.egg-info/
+env/
+venv/
+ENV/
+.env
+
+# Django specific
+staticfiles/
+media/
+
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+
+# VS Code
+.vscode/
+
+# MacOS
+.DS_Store

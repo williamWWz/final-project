@@ -1,0 +1,42 @@
+name: "Build and Deploy Django App"
+
+on:
+  push:
+    paths:
+      - 'app/**'
+      - '.github/workflows/deploy.yml'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and Push Docker image
+        run: |
+          az acr login --name ${{ secrets.ACR_NAME }}
+          IMAGE_TAG="${{ github.sha }}"
+          docker build -t ${{ secrets.ACR_NAME }}.azurecr.io/django-app:$IMAGE_TAG ./app
+          docker push ${{ secrets.ACR_NAME }}.azurecr.io/django-app:$IMAGE_TAG
+
+      - name: Deploy to Azure Container Instance
+        run: |
+          az container create \
+            --resource-group ${{ secrets.AZURE_RG }} \
+            --name django-app \
+            --image ${{ secrets.ACR_NAME }}.azurecr.io/django-app:${{ github.sha }} \
+            --cpu 1 --memory 2 \
+            --registry-login-server ${{ secrets.ACR_NAME }}.azurecr.io \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --dns-name-label django-app-${{ github.sha }} \
+            --ports 8000 \
+            --environment-variables DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }} DATABASE_NAME=${{ secrets.DATABASE_NAME }} DATABASE_USER=${{ secrets.DATABASE_USER }} DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }} DATABASE_HOST=${{ secrets.DATABASE_HOST }}
