@@ -1,0 +1,42 @@
+name: "HTTP 200 Check"
+description: "Custom composite action that verifies a deployed URL returns HTTP 200"
+
+inputs:
+  url:
+    description: "URL to test"
+    required: true
+  retries:
+    description: "Number of retry attempts"
+    required: false
+    default: "12"
+  delay:
+    description: "Seconds to wait between attempts"
+    required: false
+    default: "10"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check URL for HTTP 200
+      shell: bash
+      run: |
+        set -euo pipefail
+        URL="${{ inputs.url }}"
+        RETRIES="${{ inputs.retries }}"
+        DELAY="${{ inputs.delay }}"
+
+        echo "Checking $URL for HTTP 200..."
+        for attempt in $(seq 1 "$RETRIES"); do
+          STATUS=$(curl -sS -o /tmp/http-check-body.txt -w "%{http_code}" "$URL" || true)
+          echo "Attempt $attempt/$RETRIES returned HTTP $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "Success: $URL returned HTTP 200"
+            exit 0
+          fi
+          sleep "$DELAY"
+        done
+
+        echo "Final response body:"
+        cat /tmp/http-check-body.txt || true
+        echo "Error: $URL did not return HTTP 200"
+        exit 1
