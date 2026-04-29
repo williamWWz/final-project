@@ -11,6 +11,9 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+
     env:
       AZURE_RG: rg-final-project
       ACR_NAME: williamfinalacr
@@ -20,6 +23,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Scan Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pip-audit
+          pip-audit -r app/requirements.txt || true
 
       - name: Azure CLI Login
         run: |
