@@ -23,5 +23,5 @@ COPY . .
 # Expose port 8000 for the application
 EXPOSE 8000
 
-# Run migrations and start the application
-CMD ["/bin/sh", "-c", "python manage.py migrate && gunicorn myproject.wsgi:application --bind 0.0.0.0:8000"]
+# Start the application
+CMD ["gunicorn", "myproject.wsgi:application", "--bind", "0.0.0.0:8000"]
