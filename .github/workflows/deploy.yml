@@ -37,6 +37,10 @@ jobs:
 
       - name: Deploy to Azure Container Instance
         run: |
+          az acr update --name "$ACR_NAME" --admin-enabled true
+          REGISTRY_USERNAME=$(az acr credential show --name "$ACR_NAME" --query username --output tsv)
+          REGISTRY_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" --output tsv)
+
           az container delete \
             --resource-group "$AZURE_RG" \
             --name "$CONTAINER_NAME" \
@@ -49,8 +53,8 @@ jobs:
             --cpu 1 \
             --memory 2 \
             --registry-login-server "$ACR_LOGIN_SERVER" \
-            --registry-username "$ACR_NAME" \
-            --registry-password "${{ secrets.ACR_PASSWORD }}" \
+            --registry-username "$REGISTRY_USERNAME" \
+            --registry-password "$REGISTRY_PASSWORD" \
             --dns-name-label william-django-app-${{ github.run_number }} \
             --ports 8000 \
             --environment-variables \
