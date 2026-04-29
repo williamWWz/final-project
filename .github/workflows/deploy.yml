@@ -9,7 +9,13 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-        
+
+    env:
+      AZURE_RG: rg-final-project
+      ACR_NAME: williamfinalacr
+      ACR_LOGIN_SERVER: williamfinalacr.azurecr.io
+      CONTAINER_NAME: django-app
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,27 +30,27 @@ jobs:
 
       - name: Build and Push Docker image
         run: |
-          az acr login --name ${{ secrets.ACR_NAME }}
+          az acr login --name "$ACR_NAME"
           IMAGE_TAG="${{ github.sha }}"
-          docker build -t ${{ secrets.ACR_NAME }}.azurecr.io/django-app:$IMAGE_TAG ./app
-          docker push ${{ secrets.ACR_NAME }}.azurecr.io/django-app:$IMAGE_TAG
+          docker build -t "$ACR_LOGIN_SERVER/django-app:$IMAGE_TAG" ./app
+          docker push "$ACR_LOGIN_SERVER/django-app:$IMAGE_TAG"
 
       - name: Deploy to Azure Container Instance
         run: |
           az container delete \
-            --resource-group ${{ secrets.AZURE_RG }} \
-            --name django-app \
+            --resource-group "$AZURE_RG" \
+            --name "$CONTAINER_NAME" \
             --yes || true
 
           az container create \
-            --resource-group ${{ secrets.AZURE_RG }} \
-            --name django-app \
-            --image ${{ secrets.ACR_NAME }}.azurecr.io/django-app:${{ github.sha }} \
+            --resource-group "$AZURE_RG" \
+            --name "$CONTAINER_NAME" \
+            --image "$ACR_LOGIN_SERVER/django-app:${{ github.sha }}" \
             --cpu 1 \
             --memory 2 \
-            --registry-login-server ${{ secrets.ACR_NAME }}.azurecr.io \
-            --registry-username ${{ secrets.ACR_USERNAME }} \
-            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --registry-login-server "$ACR_LOGIN_SERVER" \
+            --registry-username "$ACR_NAME" \
+            --registry-password "${{ secrets.ACR_PASSWORD }}" \
             --dns-name-label william-django-app-${{ github.run_number }} \
             --ports 8000 \
             --environment-variables \
@@ -58,7 +64,7 @@ jobs:
         run: |
           echo "App URL:"
           az container show \
-            --resource-group ${{ secrets.AZURE_RG }} \
-            --name django-app \
+            --resource-group "$AZURE_RG" \
+            --name "$CONTAINER_NAME" \
             --query ipAddress.fqdn \
             --output tsv
