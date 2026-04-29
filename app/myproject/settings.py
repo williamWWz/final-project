@@ -10,11 +10,11 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'insecure-secret-key')
+# Use fallback values if runtime environment variables are missing or empty.
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or 'insecure-secret-key-for-class-demo'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('true', '1', 'yes')
+DEBUG = (os.environ.get('DJANGO_DEBUG') or 'False').lower() in ('true', '1', 'yes')
 
 ALLOWED_HOSTS: list[str] = [
     '*'
@@ -67,11 +67,11 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DATABASE_NAME', 'postgres'),
-        'USER': os.environ.get('DATABASE_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DATABASE_PASSWORD', ''),
-        'HOST': os.environ.get('DATABASE_HOST', 'localhost'),
-        'PORT': os.environ.get('DATABASE_PORT', '5432'),
+        'NAME': os.environ.get('DATABASE_NAME') or 'postgres',
+        'USER': os.environ.get('DATABASE_USER') or 'postgres',
+        'PASSWORD': os.environ.get('DATABASE_PASSWORD') or '',
+        'HOST': os.environ.get('DATABASE_HOST') or 'localhost',
+        'PORT': os.environ.get('DATABASE_PORT') or '5432',
     }
 }
 
