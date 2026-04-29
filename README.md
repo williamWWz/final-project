@@ -1,105 +1,209 @@
-# Final Project: Django on Azure with Terraform and GitHub Actions
+# Final Project: Django on Azure with GitHub Actions
 
-This repository contains a simple two‑tier web application built with Django and PostgreSQL.  The app is containerised with Docker and deployed to Azure using Infrastructure as Code (IaC) via Terraform and a pair of GitHub Actions workflows.
+This repository contains a simple Python Django application that displays a "Hello, world" page. The application is containerized with Docker, pushed to Azure Container Registry, deployed to Azure Container Instance, and verified through GitHub Actions.
 
-## Project structure
+## Live Deployment
 
+Current deployed application URL:
+
+```text
+http://william-django-app-13.centralus.azurecontainer.io:8000
 ```
-final_project_repo/
-├── app/                     # Django application and Docker image
+
+The GitHub Actions deployment workflow includes a custom HTTP 200 check that confirms the deployed URL is reachable.
+
+## Project Structure
+
+```text
+final-project/
+├── app/                         # Django application
 │   ├── manage.py
-│   ├── myproject/           # Django project settings and URLs
-│   ├── main/                # Example Django app with a single view
-│   ├── templates/           # HTML templates
-│   ├── Dockerfile           # Container definition for the Django app
-│   └── requirements.txt     # Python dependencies for the app
-├── terraform/               # Terraform configuration for Azure resources
+│   ├── myproject/               # Django settings and URLs
+│   ├── main/                    # Main Django app and view
+│   ├── Dockerfile               # Docker container definition
+│   └── requirements.txt         # Python dependencies
+├── terraform/                   # Terraform IaC configuration
 │   ├── main.tf
 │   ├── variables.tf
 │   └── outputs.tf
-├── .github/workflows/       # GitHub Actions CI/CD workflows
-│   ├── iac.yml              # Applies Terraform to provision infrastructure
-│   └── deploy.yml           # Builds and deploys the Docker image to Azure Container Instance
-├── .gitignore
+├── .github/
+│   ├── actions/
+│   │   └── http-200-check/      # Custom GitHub Action
+│   │       └── action.yml
+│   └── workflows/
+│       ├── deploy.yml           # Build, push, deploy, and verify app
+│       └── iac.yml              # Terraform workflow
 └── README.md
 ```
 
-## Prerequisites
+## Application
 
-- An Azure account with permission to create resource groups, container registries and container instances.
-- A GitHub repository with [Actions secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets) configured for Azure credentials and registry credentials:
-  - `AZURE_CREDENTIALS` – JSON output from an Azure service principal (used by `azure/login@v1`).
-  - `ACR_NAME` – Name of your Azure Container Registry.
-  - `AZURE_RG` – Resource group name used by Terraform and ACI.
-  - `ACR_USERNAME` and `ACR_PASSWORD` – Credentials for pushing images to the registry (if not using the service principal).
-  - Database and Django secrets: `DJANGO_SECRET_KEY`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_HOST`.
+The Django app has a simple index page that returns:
 
-## Local development
-
-To run the application locally without Azure:
-
-```bash
-# From the `app` directory
-python3 -m venv env
-source env/bin/activate
-pip install -r requirements.txt
-
-# Set environment variables for the database and secret key
-export DJANGO_SECRET_KEY="changeme"
-export DATABASE_NAME="postgres"
-export DATABASE_USER="postgres"
-export DATABASE_PASSWORD="postgres"
-export DATABASE_HOST="localhost"
-
-# Apply migrations and start the development server
-python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
+```text
+Hello, world! This is your Django app deployed on Azure.
 ```
 
-Then visit `http://localhost:8000/` to see the “Hello, world” page.
+The app runs with Gunicorn on port `8000` inside the container.
 
-## Container build
+## Containerization
 
-To build and run the Docker image manually:
+The application is containerized using Docker:
+
+- Uses the official `python:3.11-slim` base image.
+- Installs Python dependencies from `requirements.txt`.
+- Copies the Django application into the container.
+- Exposes port `8000`.
+- Starts the app with Gunicorn.
+
+Build command used by the workflow:
+
+```bash
+docker build -t williamfinalacr.azurecr.io/django-app:<commit-sha> ./app
+```
+
+## Azure Resources
+
+The project uses these Azure resources:
+
+- Resource group: `rg-final-project`
+- Azure Container Registry: `williamfinalacr`
+- Azure Container Instance: `django-app`
+- PostgreSQL flexible server: `williamfinalpg`
+
+The running application is exposed through the Azure Container Instance FQDN.
+
+## GitHub Actions Deployment Workflow
+
+The deployment workflow is located at:
+
+```text
+.github/workflows/deploy.yml
+```
+
+It automatically runs on pushes to the application, workflow, or custom action files. The workflow performs these steps:
+
+1. Checks out the repository.
+2. Logs into Azure using repository secrets.
+3. Builds the Docker image.
+4. Pushes the image to Azure Container Registry.
+5. Deploys the image to Azure Container Instance.
+6. Gets the application URL.
+7. Runs the custom HTTP 200 check.
+
+The workflow uses repository secrets for Azure authentication:
+
+```text
+AZURE_CLIENT_ID
+AZURE_CLIENT_SECRET
+AZURE_TENANT_ID
+AZURE_SUBSCRIPTION_ID
+DJANGO_SECRET_KEY
+DATABASE_NAME
+DATABASE_USER
+DATABASE_PASSWORD
+DATABASE_HOST
+```
+
+## Custom GitHub Action
+
+The custom action is located at:
+
+```text
+.github/actions/http-200-check/action.yml
+```
+
+Purpose:
+
+- Accepts a URL as input.
+- Uses `curl` to check the deployed application.
+- Retries while the container starts.
+- Passes only if the app returns HTTP `200`.
+- Fails the workflow if the deployment is not reachable.
+
+This provides automated proof that the Azure deployment is accessible.
+
+## Infrastructure as Code
+
+Terraform files are stored in:
+
+```text
+terraform/
+```
+
+The Terraform configuration documents Azure infrastructure for:
+
+- Resource group
+- Azure Container Registry
+- Azure Container Instance
+- Public DNS name label
+- Container image registry credentials
+- Useful deployment outputs
+
+The Terraform workflow is located at:
+
+```text
+.github/workflows/iac.yml
+```
+
+## Project Tracking / User Stories
+
+Project tasks are documented as GitHub Issues using user story format with acceptance criteria. The issues cover:
+
+- Repository setup and project tracking
+- Docker containerization
+- Terraform/IaC configuration
+- Docker build and push automation
+- Azure Container Instance deployment
+- Custom HTTP 200 verification action
+- README and documentation
+- Final video presentation and submission
+
+## Local Development
+
+To run locally:
 
 ```bash
 cd app
-docker build -t django-app:latest .
-docker run -it --rm -p 8000:8000 \
-  -e DJANGO_SECRET_KEY=changeme \
-  -e DATABASE_NAME=postgres \
-  -e DATABASE_USER=postgres \
-  -e DATABASE_PASSWORD=postgres \
-  -e DATABASE_HOST=db.host.example \
-  django-app:latest
+python3 -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+python manage.py runserver 0.0.0.0:8000
 ```
 
-## Terraform deployment
+Then open:
 
-Terraform files are stored under the `terraform/` directory.  They define the Azure Container Registry (ACR), Azure Container Instance (ACI) and supporting resources.  Variables are declared in `variables.tf` and outputs in `outputs.tf`.  Before applying, customise the variables or provide values via environment variables or a `terraform.tfvars` file.  Run the following commands:
+```text
+http://localhost:8000
+```
+
+## Cleanup
+
+Azure Container Instance can create charges while running. After grading or testing is complete, clean up resources in Azure Portal or run Azure CLI commands such as:
+
+```bash
+az container delete --resource-group rg-final-project --name django-app --yes
+```
+
+If Terraform is used to manage the full environment, cleanup can also be done through:
 
 ```bash
 cd terraform
-terraform init
-terraform plan -out=tfplan
-terraform apply -auto-approve tfplan
+terraform destroy
 ```
 
-After applying, note the outputs printed by Terraform; these include the fully qualified domain name of the running container.
+## Final Submission
 
-## GitHub Actions workflows
+Repository link:
 
-Two workflows under `.github/workflows` automate your CI/CD:
+```text
+https://github.com/williamWWz/final-project
+```
 
-1. **`iac.yml`** – triggered on pushes to the `terraform/` directory.  It installs Terraform, performs an `init`, `plan` and `apply` using the credentials provided in repository secrets.
-2. **`deploy.yml`** – triggered on pushes to the `app/` directory.  It logs in to Azure, builds and pushes the Docker image to ACR, then deploys a new container instance using `az container create`.  Database and Django secrets are passed to the container via environment variables.
+Live app URL:
 
-These workflows are intentionally simple and meant to be extended.  See the comments in the YAML files for guidance.
+```text
+http://william-django-app-13.centralus.azurecontainer.io:8000
+```
 
-## Cleaning up
-
-After you no longer need the deployment, run `terraform destroy` from the `terraform/` directory or trigger the cleanup stage of your CI/CD pipeline to delete all cloud resources.
-
-## License
-
-This project is provided for educational purposes and carries no warranty.  Feel free to adapt it for your own learning.
+The final presentation should show the repository, project issues/user stories, Dockerfile, Terraform files, GitHub Actions workflow, custom action, successful HTTP 200 check, and live deployed application.
