@@ -50,6 +50,7 @@ jobs:
             --resource-group "$AZURE_RG" \
             --name "$CONTAINER_NAME" \
             --image "$ACR_LOGIN_SERVER/django-app:${{ github.sha }}" \
+            --os-type Linux \
             --cpu 1 \
             --memory 2 \
             --registry-login-server "$ACR_LOGIN_SERVER" \
