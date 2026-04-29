@@ -5,6 +5,7 @@ on:
     paths:
       - "app/**"
       - ".github/workflows/deploy.yml"
+      - ".github/actions/http-200-check/**"
 
 jobs:
   build-and-deploy:
@@ -65,11 +66,21 @@ jobs:
               DATABASE_PASSWORD="${{ secrets.DATABASE_PASSWORD }}" \
               DATABASE_HOST="${{ secrets.DATABASE_HOST }}"
 
-      - name: Show app URL
+      - name: Get app URL
+        id: app_url
         run: |
-          echo "App URL:"
-          az container show \
+          FQDN=$(az container show \
             --resource-group "$AZURE_RG" \
             --name "$CONTAINER_NAME" \
             --query ipAddress.fqdn \
-            --output tsv
+            --output tsv)
+          URL="http://$FQDN:8000"
+          echo "App URL: $URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Custom HTTP 200 check
+        uses: ./.github/actions/http-200-check
+        with:
+          url: ${{ steps.app_url.outputs.url }}
+          retries: "18"
+          delay: "10"
